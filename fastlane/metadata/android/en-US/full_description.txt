@@ -9,3 +9,4 @@
   <li>Picture-in-picture mode.</li>
 </ul>
 <p>Fennec F-Droid is based on the latest Mozilla Firefox release. It has proprietary bits and telemetry removed, but still connects to various Mozilla services that can track users.</p>
+<p>Fennec F-Droid aims to offer a true to upstream experience. Alternatively FrozenFennec is available as a privacy and security hardened variant thanks to the arkenfox project.</p>

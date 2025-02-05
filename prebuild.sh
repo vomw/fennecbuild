@@ -52,13 +52,20 @@ rustup default 1.83.0
 pushd "$fenix"
 
 # Set up the app ID, version name and version code
+packageName="Fennec"
+packageExtension="fennec_fdroid"
+if [[ "$3" == "hardened" ]]; then
+    packageName="FrozenFennec"
+    packageExtension="fennec_fdroid.hardened"
+fi;
+
 sed -i \
-    -e 's|\.firefox|.fennec_fdroid|' \
+    -e 's|\.firefox|.'"$packageExtension"'|' \
     -e "s/Config.releaseVersionName(project)/'$1'/" \
     -e "s/Config.generateFennecVersionCode(arch, aab)/$2/" \
     app/build.gradle
 sed -i \
-    -e '/android:targetPackage/s/firefox/fennec_fdroid/' \
+    -e '/android:targetPackage/s/firefox/'"$packageExtension"'/' \
     app/src/release/res/xml/shortcuts.xml
 
 # Disable crash reporting
@@ -68,14 +75,14 @@ sed -i -e '/CRASH_REPORTING/s/true/false/' app/build.gradle
 sed -i -e '/TELEMETRY/s/true/false/' app/build.gradle
 
 # Let it be Fennec
-sed -i -e 's/Firefox Daylight/Fennec/; s/Firefox/Fennec/g' \
+sed -i -e 's/Firefox Daylight/'"$packageName"'/; s/Firefox/'"$packageName"'/g' \
     app/src/*/res/values*/*strings.xml
 
 # Fenix uses reflection to create a instance of profile based on the text of
 # the label, see
 # app/src/main/java/org/mozilla/fenix/perf/ProfilerStartDialogFragment.kt#185
 sed -i \
-    -e '/Firefox(.*, .*)/s/Firefox/Fennec/' \
+    -e '/Firefox(.*, .*)/s/Firefox/'"$packageName"'/' \
     -e 's/firefox_threads/fennec_threads/' \
     -e 's/firefox_features/fennec_features/' \
     app/src/main/java/org/mozilla/fenix/perf/ProfilerUtils.kt
@@ -204,6 +211,14 @@ patch -p1 --no-backup-if-mismatch --quiet < "$patches/gecko-liberate.patch"
 # Patch the use of proprietary and tracking libraries
 patch -p1 --no-backup-if-mismatch --quiet < "$patches/fenix-liberate.patch"
 
+if [[ "$3" == "hardened" ]]; then
+    # Set strict ETP by default
+    patch -p1 --no-backup-if-mismatch --quiet < "$patches/strict_etp.patch"
+
+    # Enable HTTPS only mode by default
+    patch -p1 --no-backup-if-mismatch --quiet < "$patches/https_only.patch"
+fi;
+
 # Fix v125 compile error
 patch -p1 --no-backup-if-mismatch --quiet < "$patches/gecko-fix-125-compile.patch"
 
@@ -272,5 +287,18 @@ pref("media.gmp-manager.url.override", "data:text/plain,");
 // Disable openh264 if it is already downloaded
 pref("media.gmp-gmpopenh264.enabled", false);
 EOF
+
+if [[ "$3" == "hardened" ]]; then
+    curl --output /tmp/extra_prefs-arkenfox.js "https://codeberg.org/divested/brace/raw/branch/master/brace/usr/lib/firefox/browser/defaults/preferences/userjs-arkenfox.js"
+    curl --output /tmp/extra_prefs-brace.js "https://codeberg.org/divested/brace/raw/branch/master/brace/usr/lib/firefox/browser/defaults/preferences/userjs-brace.js"
+    awk -i inplace '!/MULL-COMMENT_ME/' /tmp/extra_prefs-*.js
+    sed -i \
+        -e 's/block_mozAddonManager", true/block_mozAddonManager", false/' \
+        -e 's/"privacy.firstparty.isolate", false/"privacy.firstparty.isolate", true/' \
+        -e 's/"network.cookie.cookieBehavior", 5/"network.cookie.cookieBehavior", 1/' \
+        -e 's|// pref("media.peerconnection.enabled"|pref("media.peerconnection.enabled"|' \
+        /tmp/extra_prefs-arkenfox.js
+    cat /tmp/extra_prefs*.js >> mobile/android/app/geckoview-prefs.js
+fi;
 
 popd
