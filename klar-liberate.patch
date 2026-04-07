@@ -1,0 +1,71 @@
+diff --git a/mobile/android/focus-android/app/build.gradle b/mobile/android/focus-android/app/build.gradle
+index 01abcacb9170..a2be153203b5 100644
+--- a/mobile/android/focus-android/app/build.gradle
++++ b/mobile/android/focus-android/app/build.gradle
+@@ -334,8 +334,6 @@ dependencies {
+     implementation libs.google.material
+     implementation libs.kotlinx.coroutines
+     implementation libs.mozilla.glean
+-    implementation libs.play.review
+-    implementation libs.play.review.ktx
+     implementation libs.sentry
+ 
+     debugImplementation libs.leakcanary
+diff --git a/mobile/android/focus-android/app/proguard-rules.pro b/mobile/android/focus-android/app/proguard-rules.pro
+index 5407264b15f0..88f27067bd92 100644
+--- a/mobile/android/focus-android/app/proguard-rules.pro
++++ b/mobile/android/focus-android/app/proguard-rules.pro
+@@ -37,3 +37,11 @@
+     public static int i(...);
+     public static int d(...);
+ }
++
++####################################################################################################
++# Checker Framework
++####################################################################################################
++
++-dontwarn org.checkerframework.checker.nullness.qual.EnsuresNonNull
++-dontwarn org.checkerframework.checker.nullness.qual.EnsuresNonNullIf
++-dontwarn org.checkerframework.checker.nullness.qual.RequiresNonNull
+diff --git a/mobile/android/focus-android/app/src/main/java/org/mozilla/focus/appreview/AppReviewUtils.kt b/mobile/android/focus-android/app/src/main/java/org/mozilla/focus/appreview/AppReviewUtils.kt
+index d7fd86fc0fa3..67c62bd3a66c 100644
+--- a/mobile/android/focus-android/app/src/main/java/org/mozilla/focus/appreview/AppReviewUtils.kt
++++ b/mobile/android/focus-android/app/src/main/java/org/mozilla/focus/appreview/AppReviewUtils.kt
+@@ -11,9 +11,6 @@ import android.content.Intent
+ import androidx.core.content.edit
+ import androidx.core.net.toUri
+ import androidx.preference.PreferenceManager
+-import com.google.android.gms.tasks.Task
+-import com.google.android.play.core.review.ReviewInfo
+-import com.google.android.play.core.review.ReviewManagerFactory
+ import mozilla.components.browser.state.state.SessionState
+ import org.mozilla.focus.R
+ import org.mozilla.focus.ext.components
+@@ -34,27 +31,6 @@ object AppReviewUtils {
+      * @param activity where In App review is triggered
+      */
+     fun showAppReview(activity: Activity) {
+-        if (shouldShowInAppReview(activity)) {
+-            val manager = ReviewManagerFactory.create(activity)
+-            val request = manager.requestReviewFlow()
+-            request.addOnCompleteListener { task: Task<ReviewInfo?> ->
+-                if (task.isSuccessful) {
+-                    // We can get the ReviewInfo object
+-                    val reviewInfo = task.result ?: return@addOnCompleteListener
+-                    val flow = manager.launchReviewFlow(activity, reviewInfo)
+-                    flow.addOnCompleteListener {
+-                        // The flow has finished. The API does not indicate whether the user
+-                        // reviewed or not, or even whether the review dialog was shown. Thus, no
+-                        // matter the result, we continue our app flow.
+-                        setAppReviewed(activity)
+-                    }
+-                } else {
+-                    setAppReviewed(activity)
+-                    // There was some problem, open PlayStore
+-                    openPlayStore(activity = activity)
+-                }
+-            }
+-        }
+     }
+ 
+     /**

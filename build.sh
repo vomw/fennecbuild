@@ -114,6 +114,13 @@ pushd "$android_components"
 gradle publishToMavenLocal
 popd
 
-pushd "$fenix"
-gradle assembleRelease
-popd
+case "$1" in
+    klar)
+        pushd "$klar"
+        gradle assembleKlarRelease
+        popd
+    *)
+        pushd "$fenix"
+        gradle assembleRelease
+        popd
+esac

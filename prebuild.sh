@@ -148,6 +148,14 @@ echo "kotlin.internal.collectFUSMetrics=false" >> local.properties
 popd
 
 #
+# Klar
+#
+
+pushd "$klar"
+sed -i -e "s/include \".*\"/include \"$abi\"/" app/build.gradle
+popd
+
+#
 # Glean
 #
 
@@ -265,6 +273,9 @@ apply_patch "$patches/fenix-disable-sent-from-fx.patch"
 
 # Add "Enable UnifiedPush" and "Use UnifiedPush" settings
 apply_patch "$patches/fenix-use-unifiedpush.patch"
+
+# Patch the use of proprietary libraries
+apply_patch "$patches/klar-liberate.patch"
 
 # Fail on use of prebuilt binary
 sed -i 's|https://|hxxps://|' mobile/android/gradle/plugins/nimbus-gradle-plugin/src/main/groovy/org/mozilla/appservices/tooling/nimbus/NimbusGradlePlugin.groovy
