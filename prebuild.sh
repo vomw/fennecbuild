@@ -45,7 +45,7 @@ function apply_patch {
 }
 
 # Set up Rust
-rustup default 1.90.0
+rustup default 1.93.0
 
 #
 # Fenix
@@ -94,13 +94,15 @@ find "$patches/fenix-overlay" -type f | while read -r src; do
     cp "$src" "$dst"
 done
 
-# There are a lot of "No cast needed" warnings in the generated code
-sed -i -e '/compilerOptions.allWarningsAsErrors/s/true/false/' build.gradle
-
 # Enable about:config
 sed -i \
     -e 's/aboutConfigEnabled(.*)/aboutConfigEnabled(true)/' \
     app/src/*/java/org/mozilla/fenix/*/GeckoProvider.kt
+
+# Disable remote improvements by default
+sed -i \
+    -e '/android:defaultValue=/s/"true"/"false"/' \
+    app/src/main/res/xml/remote_improvements_preferences.xml
 
 # Add wallpaper URL
 echo 'https://gitlab.com/relan/fennecmedia/-/raw/master/wallpapers/android' > .wallpaper_url
@@ -189,7 +191,7 @@ localize_maven
 # Set A-C version
 echo "mozilla.version=${1%.0}" >> local.properties
 # Set A-S version
-sed -i -e 's/0.0.1-SNAPSHOT-+/148.0.1/' gradle/libs.versions.toml
+echo 'as.version=150.0.1' >> local.properties
 popd
 
 #
@@ -206,11 +208,9 @@ apply_patch "$patches/a-s-localize_maven.patch"
 # Configure default search engines
 apply_patch "$patches/a-s-configure-default-search-engines.patch"
 # Break the dependency on older A-C
-sed -i -e '/android-components = /s/"145\.0\.2"/"148.0.1"/' gradle/libs.versions.toml
+sed -i -e '/android-components = /s/"146\.0\.1"/"149.0"/' gradle/libs.versions.toml
 echo "rust.targets=linux-x86-64,$rusttarget" >> local.properties
 sed -i -e '/NDK ez-install/,/^$/d' libs/verify-android-ci-environment.sh
-# Fail on use of prebuilt binary
-sed -i 's|https://|hxxps://|' tools/nimbus-gradle-plugin/src/main/groovy/org/mozilla/appservices/tooling/nimbus/NimbusGradlePlugin.groovy
 popd
 
 #
@@ -260,8 +260,19 @@ apply_patch "$patches/fenix-disable-crashpull.patch"
 # Remove "Sent from Firefox" reference on sharing
 apply_patch "$patches/fenix-disable-sent-from-fx.patch"
 
-# Hack the use of IronFox-specific setting
+# Add "Enable UnifiedPush" and "Use UnifiedPush" settings
 apply_patch "$patches/fenix-use-unifiedpush.patch"
+
+# There are a lot of "No cast needed" warnings in the generated code
+sed -i -e 's/allWarningsAsErrors, true/allWarningsAsErrors, false/' mobile/android/gradle/plugins/conventions/src/main/java/org/mozilla/conventions/ProjectPlugin.kt
+
+# Fail on use of prebuilt binary
+sed -i 's|https://|hxxps://|' mobile/android/gradle/plugins/nimbus-gradle-plugin/src/main/kotlin/org/mozilla/appservices/tooling/nimbus/NimbusGradlePlugin.kt
+
+# Make Nimbus Gradle Plugin use obj/dist/host/bin/nimbus-fml which we copy
+# there manually from A-S. Otherwise Nimbus Gradle Plugin tries to download
+# nimbus-fml from Mozilla.
+sed -i 's/mozconfigSubsts?.get("MOZ_APPSERVICES_IN_TREE").isTruthy()/true/' mobile/android/gradle/plugins/nimbus-gradle-plugin/src/main/kotlin/org/mozilla/appservices/tooling/nimbus/NimbusGradlePlugin.kt
 
 # Fix v125 aar output not including native libraries
 sed -i \
@@ -291,6 +302,11 @@ sed -i 's|https://github.com|hxxps://github.com|' python/mozboot/mozboot/android
 # Make the build system think we installed the emulator and an AVD
 mkdir -p "$ANDROID_HOME/emulator"
 mkdir -p "$HOME/.mozbuild/android-device/avd"
+
+# Use terser from Debian
+sed -i \
+    -e 's|terser_path = terser_dir / ".*"|terser_path = Path("/usr/bin/terser")|' \
+    python/mozbuild/mozpack/files.py
 
 # Configure
 cat << EOF > mozconfig
