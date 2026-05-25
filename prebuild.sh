@@ -264,6 +264,9 @@ apply_patch "$patches/fenix-disable-crashpull.patch"
 # Remove "Sent from Firefox" reference on sharing
 apply_patch "$patches/fenix-disable-sent-from-fx.patch"
 
+# Add `about:config` `marionette.hide`
+apply_patch "$patches/fenix-option-to-hide-marionette.patch"
+
 # Add "Enable UnifiedPush" and "Use UnifiedPush" settings
 apply_patch "$patches/fenix-use-unifiedpush.patch"
 
